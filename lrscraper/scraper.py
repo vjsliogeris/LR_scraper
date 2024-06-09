@@ -71,7 +71,7 @@ def scrape_section(text, save_dir: Path):
         for morning_evening_url in morning_evening_urls:
             href = get_anchor_href(morning_evening_url)
             sitting_url = sittings_url_base + href
-            print(f'Gettong sitting contents from {sitting_url} ...')
+            print(f'Getting sitting contents from {sitting_url} ...')
             sitting_response = requests.get(sitting_url)
             print('Ok!')
             sitting_text = sitting_response.text
