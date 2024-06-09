@@ -6,10 +6,6 @@ import os
 import re
 import requests
 
-from tqdm import tqdm
-
-results_dir = Path('results/')
-
 def get_anchor_href(text: str) -> str:
     href_pattern = r'href="([\w\.\?\=\-\:\/]+)"'
     match = re.findall(href_pattern, text)
@@ -34,7 +30,7 @@ def split_cadences(response_text):
     return sessions
 
 
-def scrape(include_emergencies: bool = False):
+def scrape(results_dir: Path):
     logging.basicConfig(filename = 'dump.log', encoding='utf-8', level=logging.DEBUG)
     # THIS ID APPROACH IS TRASH THEY DO NOT KEEP DATA LIKE NON RETARDS GOTTA SCRAPE THE HTML
 
@@ -43,8 +39,8 @@ def scrape(include_emergencies: bool = False):
     sessions_response = requests.get(sessions_url)
     response_text = sessions_response.text
     sessions = split_cadences(response_text)
-    for title, start_index, end_index in (pbar:=tqdm(sessions)):
-        pbar.set_description(f"Processing {title}")
+    print(f'Found {len(sessions)} sessions!')
+    for title, start_index, end_index in sessions:
         relevant_text = response_text[start_index : end_index]
         title = title.replace(' ','_')
         save_dir = results_dir / Path(title)
@@ -65,7 +61,9 @@ def scrape_section(text, save_dir: Path):
         session_desc = re.search(session_regex, s_line).group()
         href = get_anchor_href(s_line)
         full_session_url = sittings_url_base + href
+        print(f'Getting session contents from {full_session_url} ...')
         session_response = requests.get(full_session_url)
+        print('Got session contents!')
         session_text = session_response.text
         morning_evening_pattern = r'<a href="w5_sale\.fakt_pos\?p_fakt_pos_id=-\d+">(?:rytinis|vakarinis)</a>'
         logging.debug(f'Regexing {full_session_url} with {morning_evening_pattern}')
@@ -73,7 +71,9 @@ def scrape_section(text, save_dir: Path):
         for morning_evening_url in morning_evening_urls:
             href = get_anchor_href(morning_evening_url)
             sitting_url = sittings_url_base + href
+            print(f'Gettong sitting contents from {sitting_url} ...')
             sitting_response = requests.get(sitting_url)
+            print('Ok!')
             sitting_text = sitting_response.text
             stenogram_pattern = r'<a href=".+" target="_new">Stenograma<\/a>'
             logging.debug(f'Regexing {sitting_url} with {stenogram_pattern}')
@@ -83,7 +83,9 @@ def scrape_section(text, save_dir: Path):
                 continue
             stenogram_tag = stenogram_match.group()
             stenogram_url = get_anchor_href(stenogram_tag)
+            print(f'Getting stenogram site contents from {stenogram_url} ...')
             stenogram_site_response = requests.get(stenogram_url)
+            print('Done!')
             stenogram_site_text = stenogram_site_response.text
             file_tag_pattern = r'<a href="\/[(?:\w\.)\/]+"><img id="[\w\:]+" src="/resources/img/docx\.png\?pfdrid_c=true" alt="" /></a>'
             logging.debug(f'Regexing {stenogram_url} with {file_tag_pattern}')
@@ -93,8 +95,10 @@ def scrape_section(text, save_dir: Path):
                 continue
             file_tag = file_match.group()
             file_url = file_url_base + get_anchor_href(file_tag)
+            print(f'Downloading from {file_url}...')
             file_response = requests.get(file_url)
             file_content = file_response.content
             filename = hashlib.md5(file_content).digest().hex()
             with open(save_dir / Path(filename+".docx"), "wb") as binary_file:
+                print(f'Saving contents to {filename+".docx"}')
                 binary_file.write(file_content)

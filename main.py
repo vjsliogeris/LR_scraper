@@ -1,4 +1,8 @@
 
+from pathlib import Path
+
 from lrscraper import scraper
 
-scraper.scrape()
+results_dir = Path('results/')
+
+scraper.scrape(results_dir)
